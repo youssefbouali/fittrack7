@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FitTrack — Sign Up / Login</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app-root">
+    <header class="app-header">
+      <h1 class="app-title">Sign Up / Login</h1>
+      <p class="app-subtitle">Create a demo account or log in (stored in your browser).</p>
+    </header>
+
+    <section class="hero">
+      <form id="authForm" class="form">
+        <label class="label">Email
+          <input id="email" class="input" type="email" required />
+        </label>
+        <label class="label">Password
+          <input id="password" class="input" type="password" required />
+        </label>
+        <div class="form-actions">
+          <button id="signup" class="btn-primary" type="button">Sign Up</button>
+          <button id="login" class="btn-ghost" type="button">Login</button>
+          <a class="back-link" href="/">Back</a>
+        </div>
+      </form>
+      <p id="status" class="muted" style="margin-top:12px"></p>
+    </section>
+
+    <footer class="app-footer">© FitTrack</footer>
+
+    <script>
+      const KEY = 'fittrack:data:v1'
+      function load(){ try{ return JSON.parse(localStorage.getItem(KEY) || '{}') }catch(e){return {}} }
+      function save(data){ localStorage.setItem(KEY, JSON.stringify(data)) }
+
+      function setCurrentUser(user){ const d = load(); d.currentUser = user; save(d); }
+      function getCurrentUser(){ return (load().currentUser) || null }
+
+      document.getElementById('signup').addEventListener('click', ()=>{
+        const email = document.getElementById('email').value.trim()
+        const password = document.getElementById('password').value
+        if(!email || !password){ alert('Provide email and password'); return }
+        const id = 'u_' + Math.random().toString(36).slice(2,9)
+        const user = { id, email }
+        setCurrentUser(user)
+        document.getElementById('status').textContent = 'Signed up and logged in as ' + email + '. You can now open Dashboard.'
+      })
+
+      document.getElementById('login').addEventListener('click', ()=>{
+        const email = document.getElementById('email').value.trim()
+        const password = document.getElementById('password').value
+        if(!email || !password){ alert('Provide email and password'); return }
+        // In this prototype, login simply sets the user
+        const id = 'u_' + Math.random().toString(36).slice(2,9)
+        const user = { id, email }
+        setCurrentUser(user)
+        document.getElementById('status').textContent = 'Logged in as ' + email + '. You can now open Dashboard.'
+      })
+
+      // show current user
+      const cur = getCurrentUser()
+      if(cur){ document.getElementById('status').textContent = 'Currently logged in as ' + cur.email }
+    </script>
+  </main>
+</body>
+</html>
