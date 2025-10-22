@@ -7,13 +7,21 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <main class="app-root">
-    <header class="app-header">
-      <h1 class="app-title">Sign Up / Login</h1>
-      <p class="app-subtitle">Create a demo account or log in (stored in your browser).</p>
-    </header>
+  <header class="site-nav">
+    <div class="site-nav-inner">
+      <a class="brand" href="/">FitTrack</a>
+      <nav class="nav-links">
+        <a class="nav-link" href="/">Home</a>
+        <a class="nav-link" href="/dashboard.html">Dashboard</a>
+      </nav>
+    </div>
+  </header>
 
-    <section class="hero">
+  <main class="app-root">
+    <section class="card auth-card">
+      <h1 class="card-title">Sign Up / Login</h1>
+      <p class="card-sub">Create a demo account or log in (stored in your browser).</p>
+
       <form id="authForm" class="form">
         <label class="label">Email
           <input id="email" class="input" type="email" required />
@@ -21,13 +29,18 @@
         <label class="label">Password
           <input id="password" class="input" type="password" required />
         </label>
+
         <div class="form-actions">
-          <button id="signup" class="btn-primary" type="button">Sign Up</button>
-          <button id="login" class="btn-ghost" type="button">Login</button>
-          <a class="back-link" href="/">Back</a>
+          <button id="signup" class="btn btn-primary" type="button">Sign Up</button>
+          <button id="login" class="btn btn-outline" type="button">Login</button>
         </div>
       </form>
-      <p id="status" class="muted" style="margin-top:12px"></p>
+
+      <p id="status" class="status-message muted"></p>
+
+      <div class="small-actions">
+        <a class="nav-link" href="/">Back to Home</a>
+      </div>
     </section>
 
     <footer class="app-footer">© FitTrack</footer>
@@ -47,18 +60,19 @@
         const id = 'u_' + Math.random().toString(36).slice(2,9)
         const user = { id, email }
         setCurrentUser(user)
-        document.getElementById('status').textContent = 'Signed up and logged in as ' + email + '. You can now open Dashboard.'
+        document.getElementById('status').textContent = 'Signed up and logged in as ' + email + '. Redirecting to Dashboard...'
+        setTimeout(()=> window.location.href = '/dashboard.html', 700)
       })
 
       document.getElementById('login').addEventListener('click', ()=>{
         const email = document.getElementById('email').value.trim()
         const password = document.getElementById('password').value
         if(!email || !password){ alert('Provide email and password'); return }
-        // In this prototype, login simply sets the user
         const id = 'u_' + Math.random().toString(36).slice(2,9)
         const user = { id, email }
         setCurrentUser(user)
-        document.getElementById('status').textContent = 'Logged in as ' + email + '. You can now open Dashboard.'
+        document.getElementById('status').textContent = 'Logged in as ' + email + '. Redirecting to Dashboard...'
+        setTimeout(()=> window.location.href = '/dashboard.html', 700)
       })
 
       // show current user
