@@ -1,6 +1,6 @@
-import React, { useState, useEffect, createContext, useContext } from 'https://unpkg.com/react@18/umd/react.development.js'
-import ReactDOM from 'https://unpkg.com/react-dom@18/umd/react-dom.development.js'
-
+// Using UMD React and ReactDOM loaded via script tags in index.html
+const { useState, useEffect, createContext, useContext } = React
+const ReactDOM = window.ReactDOM
 const { createRoot } = ReactDOM
 
 // Router supporting both pathname and hash. Uses history API for navigation.
