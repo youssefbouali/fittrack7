@@ -7,32 +7,11 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="site-nav">
-    <div class="site-nav-inner">
-      <a class="brand" href="/">FitTrack</a>
-      <nav class="nav-links">
-        <a class="nav-link" href="/">Home</a>
-        <a class="nav-link" href="/signup.html">Sign Up</a>
-        <a class="nav-link" href="/dashboard.html">Dashboard</a>
-      </nav>
-    </div>
-  </header>
-
-  <main class="app-root">
-    <section class="hero card">
-      <h1 class="hero-title">FitTrack</h1>
-      <p class="hero-sub">Your lightweight workout and progress tracker</p>
-
-      <p class="hero-text">Prototype frontend pages are available below. They use in-browser temporary storage (localStorage) for demo data.</p>
-
-      <div class="cta-group">
-        <a class="btn btn-primary" href="/signup.html">Sign Up / Login</a>
-        <a class="btn btn-outline" href="/dashboard.html">Open Dashboard</a>
-        <a class="btn btn-ghost" href="/api/health">API Health</a>
-      </div>
-    </section>
-
-    <footer class="app-footer">© FitTrack</footer>
-  </main>
+  <div id="root"></div>
+  <!-- React via CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- App script -->
+  <script type="module" src="/app.js"></script>
 </body>
 </html>
