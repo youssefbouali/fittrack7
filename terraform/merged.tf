@@ -1,5 +1,5 @@
 # ========================================
-# merged.tf – FitTrack Infrastructure (كامل + مُصحح)
+# merged.tf – FitTrack Infrastructure (كامل + مُصحح 100%)
 # ========================================
 
 terraform {
@@ -34,7 +34,7 @@ provider "aws" {
 provider "random" {}
 
 # ========================================
-# Variables (مُعلنة داخليًا – لا حاجة لـ variables.tf)
+# Variables (مُعلنة داخليًا)
 # ========================================
 variable "aws_region" {
   type    = string
@@ -83,6 +83,11 @@ variable "cognito_password_min_length" {
 }
 
 variable "frontend_domain" {
+  type    = string
+  default = ""
+}
+
+variable "api_domain" {
   type    = string
   default = ""
 }
@@ -163,14 +168,14 @@ resource "aws_s3_bucket_public_access_block" "activity_photos" {
 }
 
 # ========================================
-# CloudFront Origin Access Identity
+# CloudFront OAI
 # ========================================
 resource "aws_cloudfront_origin_access_identity" "frontend" {
   comment = "OAI for FitTrack frontend"
 }
 
 # ========================================
-# CloudFront Distribution – Frontend + API Routing
+# CloudFront Distribution (Frontend + API Routing)
 # ========================================
 resource "aws_cloudfront_distribution" "frontend" {
   origin {
@@ -197,11 +202,11 @@ resource "aws_cloudfront_distribution" "frontend" {
   default_root_object = "index.html"
 
   default_cache_behavior {
-    allowed_methods  = ["GET", "HEAD"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3Frontend"
-    cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+    allowed_methods          = ["GET", "HEAD"]
+    cached_methods           = ["GET", "HEAD"]
+    target_origin_id         = "S3Frontend"
+    cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
+    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # AllViewer
     viewer_protocol_policy   = "redirect-to-https"
     min_ttl                  = 0
     default_ttl              = 3600
@@ -209,12 +214,12 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   ordered_cache_behavior {
-    path_pattern     = "/api/*"
-    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "ElasticBeanstalkAPI"
-    cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
-    origin_request_policy_id = "5976c003-0a09-4a8d-9a2b-3c8d8e6d2f3a"
+    path_pattern             = "/api/*"
+    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods           = ["GET", "HEAD"]
+    target_origin_id         = "ElasticBeanstalkAPI"
+    cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+    origin_request_policy_id = "5976c003-0a09-4a8d-9a2b-3c8d8e6d2f3a" # AllViewerExceptHostHeader
     viewer_protocol_policy   = "https-only"
     min_ttl                  = 0
     default_ttl              = 0
@@ -222,10 +227,10 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   ordered_cache_behavior {
-    path_pattern     = "/static/*"
-    allowed_methods  = ["GET", "HEAD"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3Frontend"
+    path_pattern             = "/static/*"
+    allowed_methods          = ["GET", "HEAD"]
+    cached_methods           = ["GET", "HEAD"]
+    target_origin_id         = "S3Frontend"
     cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
     viewer_protocol_policy   = "https-only"
@@ -304,6 +309,49 @@ resource "aws_cognito_user_pool_client" "fittrack_web" {
   depends_on                           = [aws_cognito_user_pool.fittrack]
 }
 
+resource "aws_cognito_identity_pool" "fittrack" {
+  identity_pool_name               = "${var.app_name}_${var.environment}_identity_pool"
+  allow_unauthenticated_identities = false
+  cognito_identity_providers {
+    client_id               = aws_cognito_user_pool_client.fittrack_web.id
+    provider_name           = aws_cognito_user_pool.fittrack.endpoint
+    server_side_token_check = false
+  }
+  depends_on = [aws_cognito_user_pool_client.fittrack_web]
+}
+
+# ========================================
+# IAM Roles
+# ========================================
+resource "aws_iam_role" "cognito_authenticated" {
+  name = "${var.app_name}-${var.environment}-cognito-auth-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = { Federated = "cognito-identity.amazonaws.com" }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = { "cognito-identity.amazonaws.com:aud" = aws_cognito_identity_pool.fittrack.id }
+        "ForAnyValue:StringLike" = { "cognito-identity.amazonaws.com:amr" = "authenticated" }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "cognito_authenticated_s3" {
+  name = "${var.app_name}-${var.environment}-cognito-s3-policy"
+  role = aws_iam_role.cognito_authenticated.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+      Resource = "${aws_s3_bucket.activity_photos.arn}/activities/*"
+    }]
+  })
+}
+
 # ========================================
 # VPC & Networking
 # ========================================
@@ -376,23 +424,23 @@ resource "aws_security_group" "rds" {
 }
 
 resource "aws_db_instance" "fittrack" {
-  identifier              = "${var.app_name}-${var.environment}-db"
-  engine                  = "postgres"
-  engine_version          = "14.15"
-  instance_class          = var.db_instance_class
-  allocated_storage       = var.db_allocated_storage
-  storage_encrypted       = true
-  db_name                 = replace(var.db_name, "-", "_")
-  username                = var.db_username
-  password                = var.db_password
-  db_subnet_group_name    = aws_db_subnet_group.fittrack.name
-  vpc_security_group_ids  = [aws_security_group.rds.id]
-  publicly_accessible     = false
-  backup_retention_period = 7
-  skip_final_snapshot     = false
+  identifier                = "${var.app_name}-${var.environment}-db"
+  engine                    = "postgres"
+  engine_version            = "14.15"
+  instance_class            = var.db_instance_class
+  allocated_storage         = var.db_allocated_storage
+  storage_encrypted         = true
+  db_name                   = replace(var.db_name, "-", "_")
+  username                  = var.db_username
+  password                  = var.db_password
+  db_subnet_group_name      = aws_db_subnet_group.fittrack.name
+  vpc_security_group_ids    = [aws_security_group.rds.id]
+  publicly_accessible       = false
+  backup_retention_period   = 7
+  skip_final_snapshot       = false
   final_snapshot_identifier = "${var.app_name}-${var.environment}-final-snapshot"
-  tags                    = var.tags
-  depends_on              = [aws_db_subnet_group.fittrack]
+  tags                      = var.tags
+  depends_on                = [aws_db_subnet_group.fittrack]
 }
 
 # ========================================
@@ -457,46 +505,23 @@ resource "aws_elastic_beanstalk_environment" "fittrack" {
   application         = aws_elastic_beanstalk_application.fittrack.name
   solution_stack_name = "64bit Amazon Linux 2 v3.6.3 running Node.js 18"
 
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "NODE_ENV"
-    value     = var.environment
-  }
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "PORT"
-    value     = "5000"
-  }
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "AWS_REGION"
-    value     = var.aws_region
-  }
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "COGNITO_USER_POOL_ID"
-    value     = aws_cognito_user_pool.fittrack.id
-  }
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "COGNITO_CLIENT_ID"
-    value     = aws_cognito_user_pool_client.fittrack_web.id
-  }
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "DATABASE_URL"
-    value     = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.fittrack.endpoint}/${aws_db_instance.fittrack.db_name}"
-  }
-  setting {
-    namespace = "aws:autoscaling:launchconfiguration"
-    name      = "IamInstanceProfile"
-    value     = aws_iam_instance_profile.elastic_beanstalk_ec2.name
-  }
+  # Environment Variables
+  setting { namespace = "aws:elasticbeanstalk:application:environment" name = "NODE_ENV" value = var.environment }
+  setting { namespace = "aws:elasticbeanstalk:application:environment" name = "PORT" value = "5000" }
+  setting { namespace = "aws:elasticbeanstalk:application:environment" name = "AWS_REGION" value = var.aws_region }
+  setting { namespace = "aws:elasticbeanstalk:application:environment" name = "COGNITO_USER_POOL_ID" value = aws_cognito_user_pool.fittrack.id }
+  setting { namespace = "aws:elasticbeanstalk:application:environment" name = "COGNITO_CLIENT_ID" value = aws_cognito_user_pool_client.fittrack_web.id }
+  setting { namespace = "aws:elasticbeanstalk:application:environment" name = "DATABASE_URL" value = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.fittrack.endpoint}/${aws_db_instance.fittrack.db_name}" }
 
-  vpc_id          = aws_vpc.main.id
-  subnets         = join(",", aws_subnet.public[*].id)
-  security_groups = aws_security_group.elastic_beanstalk.id
-  tags            = var.tags
+  # IAM
+  setting { namespace = "aws:autoscaling:launchconfiguration" name = "IamInstanceProfile" value = aws_iam_instance_profile.elastic_beanstalk_ec2.name }
+
+  # VPC Configuration
+  setting { namespace = "aws:ec2:vpc" name = "VPCId" value = aws_vpc.main.id }
+  setting { namespace = "aws:ec2:subnets" name = "Subnets" value = join(",", aws_subnet.public[*].id) }
+  setting { namespace = "aws:autoscaling:launchconfiguration" name = "SecurityGroups" value = aws_security_group.elastic_beanstalk.id }
+
+  tags = var.tags
 
   depends_on = [
     aws_db_instance.fittrack,
@@ -505,60 +530,28 @@ resource "aws_elastic_beanstalk_environment" "fittrack" {
 }
 
 # ========================================
-# IAM Role for Cognito Authenticated Users
-# ========================================
-resource "aws_iam_role" "cognito_authenticated" {
-  name = "${var.app_name}-${var.environment}-cognito-auth-role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = { Federated = "cognito-identity.amazonaws.com" }
-      Action    = "sts:AssumeRoleWithWebIdentity"
-      Condition = {
-        StringEquals = { "cognito-identity.amazonaws.com:aud" = aws_cognito_identity_pool.fittrack.id }
-        "ForAnyValue:StringLike" = { "cognito-identity.amazonaws.com:amr" = "authenticated" }
-      }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "cognito_authenticated_s3" {
-  name = "${var.app_name}-${var.environment}-cognito-s3-policy"
-  role = aws_iam_role.cognito_authenticated.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
-      Resource = "${aws_s3_bucket.activity_photos.arn}/activities/*"
-    }]
-  })
-}
-
-resource "aws_cognito_identity_pool" "fittrack" {
-  identity_pool_name               = "${var.app_name}_${var.environment}_identity_pool"
-  allow_unauthenticated_identities = false
-  cognito_identity_providers {
-    client_id               = aws_cognito_user_pool_client.fittrack_web.id
-    provider_name           = aws_cognito_user_pool.fittrack.endpoint
-    server_side_token_check = false
-  }
-  depends_on = [aws_cognito_user_pool_client.fittrack_web]
-}
-
-# ========================================
 # Outputs
 # ========================================
 output "frontend_url" {
-  value = aws_cloudfront_distribution.frontend.domain_name
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+  description = "Frontend URL"
 }
 
 output "api_url" {
-  value = aws_elastic_beanstalk_environment.fittrack.endpoint_url
+  value       = aws_elastic_beanstalk_environment.fittrack.endpoint_url
+  description = "Backend API URL"
 }
 
 output "database_endpoint" {
-  value     = aws_db_instance.fittrack.endpoint
-  sensitive = true
+  value       = aws_db_instance.fittrack.endpoint
+  description = "RDS Endpoint"
+  sensitive   = true
+}
+
+output "cognito_user_pool_id" {
+  value = aws_cognito_user_pool.fittrack.id
+}
+
+output "cognito_client_id" {
+  value = aws_cognito_user_pool_client.fittrack_web.id
 }
