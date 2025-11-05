@@ -1,7 +1,6 @@
 # ========================================
 # merged.tf – FitTrack Infrastructure (كامل + مُصحح 100%)
 # ========================================
-
 terraform {
   required_version = ">= 1.0"
   required_providers {
@@ -14,13 +13,12 @@ terraform {
       version = "~> 3.0"
     }
   }
-
   backend "s3" {
-    bucket         = "fittrack-terraform-state"
-    key            = "prod/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    dynamodb_table = "terraform-locks"
+    bucket       = "fittrack-terraform-state"
+    key          = "prod/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true  # تم إصلاح التحذير
   }
 }
 
@@ -34,7 +32,7 @@ provider "aws" {
 provider "random" {}
 
 # ========================================
-# Variables (مُعلنة داخليًا)
+# Variables
 # ========================================
 variable "aws_region" {
   type    = string
@@ -175,111 +173,6 @@ resource "aws_cloudfront_origin_access_identity" "frontend" {
 }
 
 # ========================================
-# CloudFront Distribution (Frontend + API Routing)
-# ========================================
-resource "aws_cloudfront_distribution" "frontend" {
-  origin {
-    domain_name = aws_s3_bucket.frontend.bucket_regional_domain_name
-    origin_id   = "S3Frontend"
-    s3_origin_config {
-      origin_access_identity = aws_cloudfront_origin_access_identity.frontend.cloudfront_access_identity_path
-    }
-  }
-
-  origin {
-    domain_name = regex("https?://([^/]+)", aws_elastic_beanstalk_environment.fittrack.endpoint_url)[0]
-    origin_id   = "ElasticBeanstalkAPI"
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
-  }
-
-  enabled             = true
-  is_ipv6_enabled     = true
-  default_root_object = "index.html"
-
-  default_cache_behavior {
-    allowed_methods          = ["GET", "HEAD"]
-    cached_methods           = ["GET", "HEAD"]
-    target_origin_id         = "S3Frontend"
-    cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
-    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # AllViewer
-    viewer_protocol_policy   = "redirect-to-https"
-    min_ttl                  = 0
-    default_ttl              = 3600
-    max_ttl                  = 86400
-  }
-
-  ordered_cache_behavior {
-    path_pattern             = "/api/*"
-    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-    cached_methods           = ["GET", "HEAD"]
-    target_origin_id         = "ElasticBeanstalkAPI"
-    cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
-    origin_request_policy_id = "5976c003-0a09-4a8d-9a2b-3c8d8e6d2f3a" # AllViewerExceptHostHeader
-    viewer_protocol_policy   = "https-only"
-    min_ttl                  = 0
-    default_ttl              = 0
-    max_ttl                  = 0
-  }
-
-  ordered_cache_behavior {
-    path_pattern             = "/static/*"
-    allowed_methods          = ["GET", "HEAD"]
-    cached_methods           = ["GET", "HEAD"]
-    target_origin_id         = "S3Frontend"
-    cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
-    viewer_protocol_policy   = "https-only"
-    min_ttl                  = 31536000
-    default_ttl              = 31536000
-    max_ttl                  = 31536000
-  }
-
-  custom_error_response {
-    error_code         = 404
-    response_code      = 200
-    response_page_path = "/index.html"
-  }
-  custom_error_response {
-    error_code         = 403
-    response_code      = 200
-    response_page_path = "/index.html"
-  }
-
-  restrictions {
-    geo_restriction {
-      restriction_type = "none"
-    }
-  }
-
-  viewer_certificate {
-    cloudfront_default_certificate = true
-  }
-
-  tags = var.tags
-}
-
-resource "aws_s3_bucket_policy" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Sid       = "AllowCloudFront"
-      Effect    = "Allow"
-      Principal = { Service = "cloudfront.amazonaws.com" }
-      Action    = "s3:GetObject"
-      Resource  = "${aws_s3_bucket.frontend.arn}/*"
-      Condition = { StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.frontend.arn } }
-    }]
-  })
-  depends_on = [aws_cloudfront_distribution.frontend]
-}
-
-# ========================================
 # Cognito
 # ========================================
 resource "aws_cognito_user_pool" "fittrack" {
@@ -310,7 +203,7 @@ resource "aws_cognito_user_pool_client" "fittrack_web" {
 }
 
 resource "aws_cognito_identity_pool" "fittrack" {
-  identity_pool_name               = "${var.app_name}_${var.environment}_identity_pool"
+  identity_pool_name                = "${var.app_name}_${var.environment}_identity_pool"
   allow_unauthenticated_identities = false
   cognito_identity_providers {
     client_id               = aws_cognito_user_pool_client.fittrack_web.id
@@ -328,7 +221,7 @@ resource "aws_iam_role" "cognito_authenticated" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
+      Effect    = "Allow"
       Principal = { Federated = "cognito-identity.amazonaws.com" }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
@@ -372,7 +265,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.${count.index + 1}.0/24"
   availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
+    map_public_ip_on_launch = true
   tags                    = merge(var.tags, { Name = "${var.app_name}-${var.environment}-public-${count.index + 1}" })
 }
 
@@ -408,18 +301,21 @@ resource "aws_security_group" "rds" {
   name        = "${var.app_name}-${var.environment}-rds-sg"
   vpc_id      = aws_vpc.main.id
   description = "Allow DB access from EB"
+
   ingress {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
     security_groups = [aws_security_group.elastic_beanstalk.id]
   }
+
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   tags = var.tags
 }
 
@@ -456,8 +352,8 @@ resource "aws_iam_role" "elastic_beanstalk_ec2" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
     }]
   })
@@ -465,7 +361,7 @@ resource "aws_iam_role" "elastic_beanstalk_ec2" {
 }
 
 resource "aws_iam_role_policy_attachment" "elastic_beanstalk_web_tier" {
-  role      = aws_iam_role.elastic_beanstalk_ec2.name
+  role       = aws_iam_role.elastic_beanstalk_ec2.name
   policy_arn = "arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier"
 }
 
@@ -473,24 +369,28 @@ resource "aws_security_group" "elastic_beanstalk" {
   name        = "${var.app_name}-${var.environment}-eb-sg"
   vpc_id      = aws_vpc.main.id
   description = "Allow HTTP/HTTPS"
+
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   tags = var.tags
 }
 
@@ -500,8 +400,9 @@ resource "aws_elastic_beanstalk_application" "fittrack" {
   tags        = var.tags
 }
 
+# تم إصلاح: name + DATABASE_URL + VPC settings
 resource "aws_elastic_beanstalk_environment" "fittrack" {
-  name                = "$$ {var.app_name}- $${var.environment}-env"
+  name                = "${var.app_name}-${var.environment}-env"  # تم الإصلاح
   application         = aws_elastic_beanstalk_application.fittrack.name
   solution_stack_name = "64bit Amazon Linux 2023 v6.6.8 running Node.js 20"
 
@@ -534,7 +435,7 @@ resource "aws_elastic_beanstalk_environment" "fittrack" {
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
     name      = "DATABASE_URL"
-    value     = "postgresql://$$ {var.db_username}: $${var.db_password}@$$ {aws_db_instance.fittrack.endpoint}/ $${aws_db_instance.fittrack.db_name}"
+    value     = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.fittrack.endpoint}/${aws_db_instance.fittrack.db_name}"  # تم الإصلاح
   }
 
   # IAM
@@ -577,6 +478,114 @@ resource "aws_elastic_beanstalk_environment" "fittrack" {
 }
 
 # ========================================
+# CloudFront Distribution (يجب أن يكون بعد EB)
+# ========================================
+resource "aws_cloudfront_distribution" "frontend" {
+  origin {
+    domain_name = aws_s3_bucket.frontend.bucket_regional_domain_name
+    origin_id   = "S3Frontend"
+    s3_origin_config {
+      origin_access_identity = aws_cloudfront_origin_access_identity.frontend.cloudfront_access_identity_path
+    }
+  }
+
+  origin {
+    domain_name = regex("https?://([^/]+)", aws_elastic_beanstalk_environment.fittrack.endpoint_url)[0]
+    origin_id   = "ElasticBeanstalkAPI"
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  enabled             = true
+  is_ipv6_enabled     = true
+  default_root_object = "index.html"
+
+  default_cache_behavior {
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "S3Frontend"
+    cache_policy_id  = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
+    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # AllViewer
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl = 0
+    default_ttl = 3600
+    max_ttl = 86400
+  }
+
+  ordered_cache_behavior {
+    path_pattern     = "/api/*"
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "ElasticBeanstalkAPI"
+    cache_policy_id  = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+    origin_request_policy_id = "5976c003-0a09-4a8d-9a2b-3c8d8e6d2f3a"
+    viewer_protocol_policy = "https-only"
+    min_ttl = 0
+    default_ttl = 0
+    max_ttl = 0
+  }
+
+  ordered_cache_behavior {
+    path_pattern     = "/static/*"
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "S3Frontend"
+    cache_policy_id  = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+    viewer_protocol_policy = "https-only"
+    min_ttl = 31536000
+    default_ttl = 31536000
+    max_ttl = 31536000
+  }
+
+  custom_error_response {
+    error_code         = 404
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
+
+  custom_error_response {
+    error_code         = 403
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  tags = var.tags
+
+  depends_on = [aws_elastic_beanstalk_environment.fittrack] # تم إصلاح الاعتمادية
+}
+
+resource "aws_s3_bucket_policy" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "AllowCloudFront"
+      Effect    = "Allow"
+      Principal = { Service = "cloudfront.amazonaws.com" }
+      Action    = "s3:GetObject"
+      Resource  = "${aws_s3_bucket.frontend.arn}/*"
+      Condition = { StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.frontend.arn } }
+    }]
+  })
+  depends_on = [aws_cloudfront_distribution.frontend]
+}
+
+# ========================================
 # Outputs
 # ========================================
 output "frontend_url" {
@@ -601,4 +610,8 @@ output "cognito_user_pool_id" {
 
 output "cognito_client_id" {
   value = aws_cognito_user_pool_client.fittrack_web.id
+}
+
+output "frontend_bucket" {
+  value = aws_s3_bucket.frontend.bucket
 }
