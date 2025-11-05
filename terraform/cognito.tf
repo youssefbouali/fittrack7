@@ -119,13 +119,14 @@ resource "aws_iam_role" "cognito_authenticated" {
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
-          StringEquals = {
-            "cognito-identity.amazonaws.com:aud" = aws_cognito_identity_pool.fittrack.id
-          }
-          ForAllValues = {
-            "cognito-identity.amazonaws.com:auth_time" = "authenticated"
-          }
-        }
+		  StringEquals = {
+			"cognito-identity.amazonaws.com:aud" = aws_cognito_identity_pool.fittrack.id
+		  }
+		  "ForAllValues:StringEquals" = {
+			"cognito-identity.amazonaws.com:amr" = "authenticated"
+		  }
+		}
+
       }
     ]
   })
