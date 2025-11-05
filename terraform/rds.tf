@@ -15,7 +15,7 @@ resource "aws_security_group" "rds" {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.elastic_beanstalk.id]
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
   egress {
