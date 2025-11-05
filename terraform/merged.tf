@@ -550,10 +550,21 @@ resource "aws_elastic_beanstalk_environment" "fittrack" {
     name      = "VPCId"
     value     = aws_vpc.main.id
   }
+  # VPC Configuration (AL2023)
   setting {
-    namespace = "aws:ec2:subnets"
-    name      = "Subnets"
+    namespace = "aws:ec2:vpc"
+    name      = "VPCId"
+    value     = aws_vpc.main.id
+  }
+  setting {
+    namespace = "aws:ec2:vpc"
+    name      = "ELBSubnets"
     value     = join(",", aws_subnet.public[*].id)
+  }
+  setting {
+    namespace = "aws:ec2:instances"
+    name      = "AssociatePublicIpAddress"
+    value     = "true"
   }
   setting {
     namespace = "aws:autoscaling:launchconfiguration"
