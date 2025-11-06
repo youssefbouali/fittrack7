@@ -40,13 +40,12 @@ resource "aws_cloudfront_distribution" "frontend" {
 
     forwarded_values {
       query_string = true
-      headers {
-        header_names = ["Authorization", "Content-Type"]
-      }
+      headers      = ["Authorization", "Content-Type"]
       cookies {
         forward = "all"
       }
     }
+    
 
     viewer_protocol_policy = "https-only"
     min_ttl                = 0

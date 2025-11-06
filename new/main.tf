@@ -11,9 +11,8 @@ locals {
 
 # Null resource for outputs
 resource "null_resource" "deployment_summary" {
-  provisioners {
-    local-exec {
-      command = "echo 'FitTrack infrastructure deployment complete!'"
-    }
+  provisioner "local-exec" {
+    command = "echo 'FitTrack infrastructure deployment complete!'"
   }
 }
+
