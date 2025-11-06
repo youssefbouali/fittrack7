@@ -642,6 +642,11 @@ output "cognito_client_id" {
   value = aws_cognito_user_pool_client.fittrack_web.id
 }
 
+output "cognito_identity_pool_id" {
+  value       = aws_cognito_identity_pool.fittrack.id
+  description = "Cognito Identity Pool ID"
+}
+
 output "frontend_bucket" {
   value = aws_s3_bucket.frontend.bucket
 }
