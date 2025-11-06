@@ -535,8 +535,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "S3Frontend"
 	
-    cache_policy_id          = aws_cloudfront_cache_policy.caching_optimized.id
-    origin_request_policy_id = aws_cloudfront_origin_request_policy.all_viewer.id
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_optimized.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
 	
     viewer_protocol_policy = "redirect-to-https"
     min_ttl = 0
