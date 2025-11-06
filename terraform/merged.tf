@@ -634,6 +634,12 @@ output "database_endpoint" {
   sensitive   = true
 }
 
+output "db_password" {
+  value     = var.db_password
+  sensitive = true
+  description = "Database password (use with -raw to show)"
+}
+
 output "cognito_user_pool_id" {
   value = aws_cognito_user_pool.fittrack.id
 }
