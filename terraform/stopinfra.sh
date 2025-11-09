@@ -17,7 +17,7 @@ aws elasticbeanstalk update-environment \
     Namespace=aws:autoscaling:asg,OptionName=MinSize,Value=0 \
     Namespace=aws:autoscaling:asg,OptionName=MaxSize,Value=0 || echo "EB already scaled down"
 
-# --- CloudFront (اختياري) ---
+# --- CloudFront ---
 CF_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null || echo "")
 if [ -n "$CF_ID" ]; then
   echo "Disabling CloudFront: $CF_ID"
