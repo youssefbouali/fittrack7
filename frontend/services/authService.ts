@@ -62,10 +62,14 @@ export const AuthService = {
   
   
   async confirmSignup(credentials: { username: string; code: string }): Promise<{ userSub: string }> {
-    const { username, code } = credentials;
-    await Auth.confirmSignUp(username, code); 
-    return { userSub: username };
-  },
+  await Auth.confirmSignUp({
+    username: credentials.username,
+    code: credentials.code,
+  } as any);
+
+  return { userSub: credentials.username };
+}
+
 
   async signout(): Promise<void> {
     await Auth.signOut() as any;
