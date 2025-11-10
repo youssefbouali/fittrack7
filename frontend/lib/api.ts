@@ -50,6 +50,8 @@ async function apiCall(endpoint: string, options: RequestOptions = {}) {
   return data;
 }
 
+let token: string | null = null;
+
 export const api = {
   apiCall,
 
@@ -77,6 +79,17 @@ export const api = {
     apiCall(`/api/activities/${id}`, {
       method: 'DELETE',
     }),
+	
+	
+  getToken: () => token || localStorage.getItem('token'),
+  setToken: (newToken: string) => {
+    token = newToken;
+    localStorage.setItem('token', newToken);
+  },
+  clearToken: () => {
+    token = null;
+    localStorage.removeItem('token');
+  },
 
   // Health check
   health: () => apiCall('/api/health'),
