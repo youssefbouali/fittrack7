@@ -59,6 +59,13 @@ export const AuthService = {
 
     return { user, accessToken: session.accessToken.jwtToken, idToken: session.idToken.jwtToken };
   },
+  
+  
+  async confirmSignup(credentials: { username: string; code: string }): Promise<{ userSub: string }> {
+    const { username, code } = credentials;
+    await Auth.confirmSignUp(username, code); 
+    return { userSub: username };
+  },
 
   async signout(): Promise<void> {
     await Auth.signOut() as any;
