@@ -23,14 +23,17 @@ export const initializeAuth = (config: {
 
 export const AuthService = {
   async signup(credentials: { email: string; password: string; username?: string }): Promise<{ userId: string; userSub: string }> {
-    const username = credentials.username || credentials.email;
-    const result = await Auth.signUp({  // استخدم Auth مباشرة
-      username,
-      password: credentials.password,
-      attributes: { email: credentials.email },
-    });
-    return { userId: result.userSub, userSub: result.userSub };
-  },
+  const username = credentials.username || credentials.email;
+  const result = await Auth.signUp({
+    username,
+    password: credentials.password,
+    attributes: { 
+      email: credentials.email,
+    },
+  } as any); 
+  return { userId: result.userSub, userSub: result.userSub };
+}
+
 
   async signin(credentials: { username: string; password: string }): Promise<{ user: User; accessToken: string; idToken: string }> {
     const result: CognitoUser = await Auth.signIn(credentials.username, credentials.password); // هنا أيضاً
