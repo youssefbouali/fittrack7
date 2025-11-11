@@ -11,38 +11,39 @@ export default function App({ Component, pageProps }: AppProps) {
   const [isAmplifyConfigured, setAmplifyConfigured] = useState(false);
 
   useEffect(() => {
-  if (typeof window !== "undefined") {
-    validateAwsConfig();
+    if (typeof window !== "undefined") {
+      validateAwsConfig();
 
-    Amplify.configure({
-      Auth: {
-        region: awsConfig.region,
-        userPoolId: awsConfig.userPoolId,
-        userPoolWebClientId: awsConfig.clientId,
-        identityPoolId: awsConfig.identityPoolId,
-      },
-      Storage: {
-        region: awsConfig.region,
-        bucket: awsConfig.s3Bucket,
-        identityPoolId: awsConfig.identityPoolId,
-      },
-    });
+      Amplify.configure({
+        Auth: {
+          region: awsConfig.region,
+          userPoolId: awsConfig.userPoolId,
+          userPoolWebClientId: awsConfig.clientId,
+          identityPoolId: awsConfig.identityPoolId,
+        },
+        Storage: {
+          region: awsConfig.region,
+          bucket: awsConfig.s3Bucket,
+          identityPoolId: awsConfig.identityPoolId,
+        },
+      });
 
-    const checkAuth = async () => {
-      try {
-        const user = await AuthService.getCurrentUser();
-        if (user) {
-          // User is logged in
+      setAmplifyConfigured(true); 
+
+      const checkAuth = async () => {
+        try {
+          const user = await AuthService.getCurrentUser();
+          if (user) {
+            console.log("User logged in:", user);
+          }
+        } catch (error) {
+          console.error(error);
         }
-      } catch (error) {
-        console.error(error);
-      }
-    };
+      };
 
-    checkAuth();
-  }
-}, []);
-
+      checkAuth();
+    }
+  }, []);
 
   if (!isAmplifyConfigured) return null; 
 
