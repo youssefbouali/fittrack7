@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { store } from '../store/store';
 import dynamic from 'next/dynamic';
 import '../styles/globals.css';
+import '../styles/auth.css';
 
 const AppContent = dynamic(() => import('../components/AppContent'), { ssr: false });
 
