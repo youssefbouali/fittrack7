@@ -6,8 +6,8 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  EB_APP_NAME: fittrack-prod2
-  EB_ENV_NAME: fittrack-prod2-env-new
+  EB_APP_NAME: fittrack-prod3
+  EB_ENV_NAME: fittrack-prod3-env-new
   S3_BUCKET: fittrack-frontend-dev-r6modxd4
   CLOUDFRONT_DISTRIBUTION_ID: E238AHI7HD5EMF
 
